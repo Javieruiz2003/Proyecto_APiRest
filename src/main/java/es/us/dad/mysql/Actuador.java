@@ -17,7 +17,7 @@ public class Actuador {
 	public Actuador(Integer id, String nombre, String tipo, String identificador, Integer id_device) {
 		super();
 		this.id = id;
-		this.nombre = nombre;
+		this.nombre =   nombre;
 		this.tipo = tipo;
 		this.identificador = identificador;
 		this.id_device = id_device;
