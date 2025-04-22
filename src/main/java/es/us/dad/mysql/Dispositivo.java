@@ -20,6 +20,8 @@ public class Dispositivo {
 		this.id_grupo = id_grupo;
 	}
 	
+	//prueba
+	
 	public Integer getId() {
 		return id;
 	}
