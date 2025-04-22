@@ -1,8 +1,5 @@
 package es.us.dad.mysql;
 
-
-
-
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -42,15 +39,15 @@ public class MainVerticle extends AbstractVerticle {
 		Sensor nuevoSensor = new Sensor(null, "Sensor1", "Temperatura", 123, 1);
 		addSensor(nuevoSensor, res -> {
 		    if (res.succeeded()) {
-		        System.out.println("Operación completada con éxito");
+		        System.out.println("Operaciï¿½n completada con ï¿½xito");
 		    } else {
-		        System.out.println("Error en la operación");
+		        System.out.println("Error en la operaciï¿½n");
 		    }
 		});
 		
 		deleteSensor(3, res -> {  // Eliminar sensor con ID=3
 		    if (res.succeeded()) {
-		        System.out.println("Eliminación exitosa");
+		        System.out.println("Eliminaciï¿½n exitosa");
 		    } else {
 		        System.out.println("Fallo al eliminar: " + res.cause());
 		    }
@@ -144,10 +141,10 @@ public class MainVerticle extends AbstractVerticle {
 	    
 	    mySqlClient.preparedQuery(query, params, res -> {
 	        if (res.succeeded()) {
-	            System.out.println("Sensor añadido correctamente");
+	            System.out.println("Sensor aï¿½adido correctamente");
 	            handler.handle(Future.succeededFuture());
 	        } else {
-	            System.out.println("Error al añadir sensor: " + res.cause().getLocalizedMessage());
+	            System.out.println("Error al aï¿½adir sensor: " + res.cause().getLocalizedMessage());
 	            handler.handle(Future.failedFuture(res.cause()));
 	        }
 	    });
@@ -164,7 +161,7 @@ public class MainVerticle extends AbstractVerticle {
 	                System.out.println("Sensor eliminado (ID: " + sensorId + ")");
 	                handler.handle(Future.succeededFuture());
 	            } else {
-	                System.out.println("No se encontró el sensor con ID: " + sensorId);
+	                System.out.println("No se encontrï¿½ el sensor con ID: " + sensorId);
 	                handler.handle(Future.failedFuture("Sensor no encontrado"));
 	            }
 	        } else {
