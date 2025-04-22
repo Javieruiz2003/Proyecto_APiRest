@@ -1,4 +1,4 @@
-package es.us.dad.mysql;
+package  es.us.dad.mysql;
 
 import java.util.Objects;
 
