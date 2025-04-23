@@ -3,37 +3,36 @@ package es.us.dad.rest;
 import java.util.Objects;
 
 public class SensorTemperaturaEntity {
-	// El sensor tiene temperatura y humedada, pero de momento solo usaré la
-	// temperatura
-	private Integer idtemp;
+	// El sensor tiene temperatura y humedada, pero de momento solo usaré la temperatura
+	private Integer idTemp;
 	private Double temperatura;
 	private Long timestampt;
-	private Integer idP; // id de la placa
-	private Integer idG; // id del group
+	private Integer idPlaca; // id de la placa
+	private Integer idGroup; // id del group
 
-	public SensorTemperaturaEntity(Integer idtemp, Double temperatura, Long timestampt, Integer idP, Integer idG) {
+	public SensorTemperaturaEntity(Integer idTemp, Double temperatura, Long timestampt, Integer idPlaca, Integer idGroup) {
 		super();
-		this.idtemp = idtemp;
+		this.idTemp = idTemp;
 		this.temperatura = temperatura;
 		this.timestampt = timestampt;
-		this.idP = idP;
-		this.idG = idG;
+		this.idPlaca = idPlaca;
+		this.idGroup = idGroup;
 	}
 
-	public Integer getIdP() {
-		return idP;
+	public Integer getidPlaca() {
+		return idPlaca;
 	}
 
-	public void setIdP(Integer idP) {
-		this.idP = idP;
+	public void setidPlaca(Integer idPlaca) {
+		this.idPlaca = idPlaca;
 	}
 
-	public Integer getIdG() {
-		return idG;
+	public Integer getidGroup() {
+		return idGroup;
 	}
 
-	public void setIdG(Integer idG) {
-		this.idG = idG;
+	public void setidGroup(Integer idGroup) {
+		this.idGroup = idGroup;
 	}
 
 	public SensorTemperaturaEntity() {
@@ -42,7 +41,7 @@ public class SensorTemperaturaEntity {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(idtemp);
+		return Objects.hash(idTemp);
 	}
 
 	@Override
@@ -54,15 +53,15 @@ public class SensorTemperaturaEntity {
 		if (getClass() != obj.getClass())
 			return false;
 		SensorTemperaturaEntity other = (SensorTemperaturaEntity) obj;
-		return Objects.equals(idtemp, other.idtemp);
+		return Objects.equals(idTemp, other.idTemp);
 	}
 
-	public Integer getIdtemp() {
-		return idtemp;
+	public Integer getidTemp() {
+		return idTemp;
 	}
 
-	public void setIdtemp(Integer idtemp) {
-		this.idtemp = idtemp;
+	public void setidTemp(Integer idTemp) {
+		this.idTemp = idTemp;
 	}
 
 	public Double getTemperatura() {
