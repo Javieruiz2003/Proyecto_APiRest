@@ -20,7 +20,7 @@ public class RestServer extends AbstractVerticle {
 	/************************/
 
 	private Map<Integer, SensorTemperaturaEntity> temperaturas = new HashMap<Integer, SensorTemperaturaEntity>();
-	private Map<Integer, ActVenEntity> vens = new HashMap<Integer, ActVenEntity>();
+	private Map<Integer, ActVenEntity> ventiladores = new HashMap<Integer, ActVenEntity>();
 	private Gson gson;
 
 	public void start(Promise<Void> startFuture) {
@@ -48,13 +48,13 @@ public class RestServer extends AbstractVerticle {
 		router.put("/api/temperaturas/:idtemp").handler(this::putOneT);
 		
 		// Actuador Ventilador
-		router.route("/api/vens").handler(BodyHandler.create());
-		router.get("/api/vens").handler(this::getAllWithParamsV);
-		router.get("/api/vens/ven/allv").handler(this::getAllV);
-		router.get("/api/vens/:idVent").handler(this::getOneV);
-		router.post("/api/vens").handler(this::addOneV);
-		router.delete("/api/vens/:idVent").handler(this::deleteOneV);
-		router.put("/api/vens/:idVent").handler(this::putOneV);
+		router.route("/api/ventiladores").handler(BodyHandler.create());
+		router.get("/api/ventiladores").handler(this::getAllWithParamsV);
+		router.get("/api/ventiladores/ventilador/allv").handler(this::getAllV);
+		router.get("/api/ventiladores/:idVent").handler(this::getOneV);
+		router.post("/api/ventiladores").handler(this::addOneV);
+		router.delete("/api/ventiladores/:idVent").handler(this::deleteOneV);
+		router.put("/api/ventiladores/:idVent").handler(this::putOneV);
 
 
 	}
@@ -159,7 +159,7 @@ public class RestServer extends AbstractVerticle {
 	private void getAllV(RoutingContext routingContext) {
 	    routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
 	        .setStatusCode(200)
-	        .end(gson.toJson(new ActVenListWrapper(vens.values())));
+	        .end(gson.toJson(new ActVenListWrapper(ventiladores.values())));
 	}
 
 	private void getAllWithParamsV(RoutingContext routingContext) {
@@ -174,7 +174,7 @@ public class RestServer extends AbstractVerticle {
 
 	    routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
 	        .setStatusCode(200)
-	        .end(gson.toJson(new ActVenListWrapper(vens.values().stream().filter(elem -> {
+	        .end(gson.toJson(new ActVenListWrapper(ventiladores.values().stream().filter(elem -> {
 	            boolean res = true;
 	            res = res && (onoffInt != null ? elem.getOnoff().equals(onoffInt) : true);
 	            res = res && (timestampLong != null ? elem.getTimestampf().equals(timestampLong) : true);
@@ -185,8 +185,8 @@ public class RestServer extends AbstractVerticle {
 	private void getOneV(RoutingContext routingContext) {
 	    try {
 	        int id = Integer.parseInt(routingContext.request().getParam("idVent"));
-	        if (vens.containsKey(id)) {
-	            ActVenEntity ven = vens.get(id);
+	        if (ventiladores.containsKey(id)) {
+	            ActVenEntity ven = ventiladores.get(id);
 	            routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
 	                .setStatusCode(200).end(gson.toJson(ven));
 	        } else {
@@ -199,7 +199,7 @@ public class RestServer extends AbstractVerticle {
 
 	private void addOneV(RoutingContext routingContext) {
 	    final ActVenEntity ven = gson.fromJson(routingContext.getBodyAsString(), ActVenEntity.class);
-	    vens.put(ven.getIdVent(), ven);
+	    ventiladores.put(ven.getIdVent(), ven);
 	    routingContext.response().setStatusCode(201)
 	        .putHeader("content-type", "application/json; charset=utf-8")
 	        .end(gson.toJson(ven));
@@ -207,14 +207,14 @@ public class RestServer extends AbstractVerticle {
 
 	private void putOneV(RoutingContext routingContext) {
 	    int id = Integer.parseInt(routingContext.request().getParam("idVent"));
-	    ActVenEntity ven = vens.get(id);
+	    ActVenEntity ven = ventiladores.get(id);
 	    final ActVenEntity updated = gson.fromJson(routingContext.getBodyAsString(), ActVenEntity.class);
 	    if (ven != null) {
 	        ven.setOnoff(updated.getOnoff());
 	        ven.setTimestampf(updated.getTimestampf());
 	        ven.setIdGroup(updated.getIdGroup());
 	        ven.setIdPlaca(updated.getIdPlaca());
-	        vens.put(id, ven);
+	        ventiladores.put(id, ven);
 	        routingContext.response().setStatusCode(201)
 	            .putHeader("content-type", "application/json; charset=utf-8")
 	            .end(gson.toJson(ven));
@@ -225,8 +225,8 @@ public class RestServer extends AbstractVerticle {
 
 	private void deleteOneV(RoutingContext routingContext) {
 	    int id = Integer.parseInt(routingContext.request().getParam("idVent"));
-	    if (vens.containsKey(id)) {
-	        ActVenEntity removed = vens.remove(id);
+	    if (ventiladores.containsKey(id)) {
+	        ActVenEntity removed = ventiladores.remove(id);
 	        routingContext.response().setStatusCode(200)
 	            .putHeader("content-type", "application/json; charset=utf-8")
 	            .end(gson.toJson(removed));
