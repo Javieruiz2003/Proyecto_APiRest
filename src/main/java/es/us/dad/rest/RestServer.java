@@ -20,8 +20,6 @@ public class RestServer extends AbstractVerticle {
 	/************************/
 
 	private Map<Integer, SensorTemperaturaEntity> temperaturas = new HashMap<Integer, SensorTemperaturaEntity>();
-	private Map<Integer, SensorLuzEntity> luces = new HashMap<Integer, SensorLuzEntity>();
-	private Map<Integer, ActLedEntity> leds = new HashMap<Integer, ActLedEntity>();
 	private Map<Integer, ActVenEntity> vens = new HashMap<Integer, ActVenEntity>();
 	private Gson gson;
 
@@ -48,20 +46,16 @@ public class RestServer extends AbstractVerticle {
 		router.post("/api/temperaturas").handler(this::addOneT);
 		router.delete("/api/temperaturas/:idtemp").handler(this::deleteOneT);
 		router.put("/api/temperaturas/:idtemp").handler(this::putOneT);
-		// SensorLuz
-		router.route("/api/luces*").handler(BodyHandler.create());
-		router.get("/api/luces").handler(this::getAllWithParamsL);
-		router.get("/api/luces/luz/alll").handler(this::getAllL);
-		router.get("/api/luces/:idl").handler(this::getOneL);
-		router.post("/api/luces").handler(this::addOneL);
-		router.delete("/api/luces/:idl").handler(this::deleteOneL);
-		router.put("/api/luces/:idl").handler(this::putOneL);
-		// Actuador led
-		router.route("/api/led*").handler(BodyHandler.create());
-		router.get("/api/led").handler(this::getAllWithParamsLe);
-		router.get("/api/led/led/allle").handler(this::getAllLe);
-		router.get("/api/led/:idla").handler(this::getOneLe);
-		router.post("/api/led").handler(this::addOneLe);
+		
+		// Actuador Ventilador
+		router.route("/api/vens").handler(BodyHandler.create());
+		router.get("/api/vens").handler(this::getAllWithParamsV);
+		router.get("/api/vens/ven/allv").handler(this::getAllV);
+		router.get("/api/vens/:idVent").handler(this::getOneV);
+		router.post("/api/vens").handler(this::addOneV);
+		router.delete("/api/vens/:idVent").handler(this::deleteOneV);
+		router.put("/api/vens/:idVent").handler(this::putOneV);
+
 
 	}
 
@@ -69,7 +63,6 @@ public class RestServer extends AbstractVerticle {
 	public void stop(Promise<Void> stopPromise) throws Exception {
 		try {
 			temperaturas.clear();
-			luces.clear();
 			stopPromise.complete();
 		} catch (Exception e) {
 			stopPromise.fail(e);
@@ -130,7 +123,7 @@ public class RestServer extends AbstractVerticle {
 	private void addOneT(RoutingContext routingContext) {
 		final SensorTemperaturaEntity temp = gson.fromJson(routingContext.getBodyAsString(),
 				SensorTemperaturaEntity.class);
-		temperaturas.put(temp.getIdtemp(), temp);
+		temperaturas.put(temp.getidTemp(), temp);
 		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
 				.end(gson.toJson(temp));
 	}
@@ -155,147 +148,91 @@ public class RestServer extends AbstractVerticle {
 				SensorTemperaturaEntity.class);
 		ds.setTemperatura(element.getTemperatura());
 		ds.setTimestampt(element.getTimestampt());
-		temperaturas.put(ds.getIdtemp(), ds);
+		temperaturas.put(ds.getidTemp(), ds);
 		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
 				.end(gson.toJson(element));
 	}
-
-	/****************/
-	/***** LUZ ********/
-	/****************/
-
-	@SuppressWarnings("unused")
-	private void getAllL(RoutingContext routingContext) {
-		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
-				.end(gson.toJson(new LuzEntityListWrapper(luces.values())));
+	
+	/************************/
+	/***** VENTILADOR ********/
+	/************************/
+	private void getAllV(RoutingContext routingContext) {
+	    routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+	        .setStatusCode(200)
+	        .end(gson.toJson(new ActVenListWrapper(vens.values())));
 	}
 
-	private void getAllWithParamsL(RoutingContext routingContext) {
-		final String luz = routingContext.queryParams().contains("nivel_luz")
-				? routingContext.queryParam("nivel_luz").get(0)
-				: null;
+	private void getAllWithParamsV(RoutingContext routingContext) {
+	    final String onoff = routingContext.queryParams().contains("onoff") ?
+	        routingContext.queryParam("onoff").get(0) : null;
 
-		final String timestampl = routingContext.queryParams().contains("timestampl")
-				? routingContext.queryParam("timestampl").get(0)
-				: null;
+	    final String timestampf = routingContext.queryParams().contains("timestampf") ?
+	        routingContext.queryParam("timestampf").get(0) : null;
 
-		Double luzdouble = Double.parseDouble(luz);
-		Long timestamptllong = Long.parseLong(timestampl);
+	    Integer onoffInt = (onoff != null) ? Integer.parseInt(onoff) : null;
+	    Long timestampLong = (timestampf != null) ? Long.parseLong(timestampf) : null;
 
-		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
-				.end(gson.toJson(new LuzEntityListWrapper(luces.values().stream().filter(elem -> {
-					boolean res = true;
-					res = res && (luzdouble != null ? elem.getNivel_luz().equals(luzdouble) : true);
-					res = res && (timestamptllong != null ? elem.getNivel_luz().equals(timestamptllong) : true);
-					return res;
-				}).collect(Collectors.toList()))));
+	    routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+	        .setStatusCode(200)
+	        .end(gson.toJson(new ActVenListWrapper(vens.values().stream().filter(elem -> {
+	            boolean res = true;
+	            res = res && (onoffInt != null ? elem.getOnoff().equals(onoffInt) : true);
+	            res = res && (timestampLong != null ? elem.getTimestampf().equals(timestampLong) : true);
+	            return res;
+	        }).collect(Collectors.toList()))));
 	}
 
-	private void getOneL(RoutingContext routingContext) {
-		int id = 0;
-		try {
-			id = Integer.parseInt(routingContext.request().getParam("idl"));
-
-			if (luces.containsKey(id)) {
-				SensorLuzEntity ds = luces.get(id);
-				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
-						.setStatusCode(200).end(ds != null ? gson.toJson(ds) : "");
-			} else {
-				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
-						.setStatusCode(204).end();
-			}
-		} catch (Exception e) {
-			routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(204)
-					.end();
-		}
+	private void getOneV(RoutingContext routingContext) {
+	    try {
+	        int id = Integer.parseInt(routingContext.request().getParam("idVent"));
+	        if (vens.containsKey(id)) {
+	            ActVenEntity ven = vens.get(id);
+	            routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+	                .setStatusCode(200).end(gson.toJson(ven));
+	        } else {
+	            routingContext.response().setStatusCode(204).end();
+	        }
+	    } catch (Exception e) {
+	        routingContext.response().setStatusCode(400).end();
+	    }
 	}
 
-	private void addOneL(RoutingContext routingContext) {
-		final SensorLuzEntity luz = gson.fromJson(routingContext.getBodyAsString(), SensorLuzEntity.class);
-		luces.put(luz.getIdl(), luz);
-		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
-				.end(gson.toJson(luz));
+	private void addOneV(RoutingContext routingContext) {
+	    final ActVenEntity ven = gson.fromJson(routingContext.getBodyAsString(), ActVenEntity.class);
+	    vens.put(ven.getIdVent(), ven);
+	    routingContext.response().setStatusCode(201)
+	        .putHeader("content-type", "application/json; charset=utf-8")
+	        .end(gson.toJson(ven));
 	}
 
-	private void deleteOneL(RoutingContext routingContext) {
-		int id = Integer.parseInt(routingContext.request().getParam("idl"));
-		if (luces.containsKey(id)) {
-			SensorLuzEntity user = luces.get(id);
-			luces.remove(id);
-			routingContext.response().setStatusCode(200).putHeader("content-type", "application/json; charset=utf-8")
-					.end(gson.toJson(user));
-		} else {
-			routingContext.response().setStatusCode(204).putHeader("content-type", "application/json; charset=utf-8")
-					.end();
-		}
+	private void putOneV(RoutingContext routingContext) {
+	    int id = Integer.parseInt(routingContext.request().getParam("idVent"));
+	    ActVenEntity ven = vens.get(id);
+	    final ActVenEntity updated = gson.fromJson(routingContext.getBodyAsString(), ActVenEntity.class);
+	    if (ven != null) {
+	        ven.setOnoff(updated.getOnoff());
+	        ven.setTimestampf(updated.getTimestampf());
+	        ven.setIdGroup(updated.getIdGroup());
+	        ven.setIdPlaca(updated.getIdPlaca());
+	        vens.put(id, ven);
+	        routingContext.response().setStatusCode(201)
+	            .putHeader("content-type", "application/json; charset=utf-8")
+	            .end(gson.toJson(ven));
+	    } else {
+	        routingContext.response().setStatusCode(404).end();
+	    }
 	}
 
-	private void putOneL(RoutingContext routingContext) {
-		int id = Integer.parseInt(routingContext.request().getParam("idl"));
-		SensorLuzEntity ds = luces.get(id);
-		final SensorLuzEntity element = gson.fromJson(routingContext.getBodyAsString(), SensorLuzEntity.class);
-		ds.setNivel_luz(element.getNivel_luz());
-		ds.setTimestampl(element.getTimestampl());
-		luces.put(ds.getIdl(), ds);
-		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
-				.end(gson.toJson(element));
-	}
-
-	// *****************//
-	// ***Actudor led***//
-	// *****************//
-
-	@SuppressWarnings("unused")
-	private void getAllLe(RoutingContext routingContext) {
-		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
-				.end(gson.toJson(new ActLedEntityListWrapper(leds.values())));
-	}
-
-	private void getAllWithParamsLe(RoutingContext routingContext) {
-		final String luz = routingContext.queryParams().contains("nivel_luz")
-				? routingContext.queryParam("nivel_luz").get(0)
-				: null;
-
-		final String timestample = routingContext.queryParams().contains("timestample")
-				? routingContext.queryParam("timestample").get(0)
-				: null;
-
-		Double luzdouble = Double.parseDouble(luz);
-		Long timestamplelong = Long.parseLong(timestample);
-
-		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
-				.end(gson.toJson(new LuzEntityListWrapper(luces.values().stream().filter(elem -> {
-					boolean res = true;
-					res = res && (luzdouble != null ? elem.getNivel_luz().equals(luzdouble) : true);
-					res = res && (timestamplelong != null ? elem.getNivel_luz().equals(timestamplelong) : true);
-					return res;
-				}).collect(Collectors.toList()))));
-	}
-
-	private void getOneLe(RoutingContext routingContext) {
-		int id = 0;
-		try {
-			id = Integer.parseInt(routingContext.request().getParam("idla"));
-
-			if (luces.containsKey(id)) {
-				ActLedEntity ds = leds.get(id);
-				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
-						.setStatusCode(200).end(ds != null ? gson.toJson(ds) : "");
-			} else {
-				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
-						.setStatusCode(204).end();
-			}
-		} catch (Exception e) {
-			routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(204)
-					.end();
-		}
-	}
-
-	private void addOneLe(RoutingContext routingContext) {
-		final ActLedEntity led = gson.fromJson(routingContext.getBodyAsString(), ActLedEntity.class);
-		leds.put(led.getIdLA(), led);
-		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
-				.end(gson.toJson(led));
+	private void deleteOneV(RoutingContext routingContext) {
+	    int id = Integer.parseInt(routingContext.request().getParam("idVent"));
+	    if (vens.containsKey(id)) {
+	        ActVenEntity removed = vens.remove(id);
+	        routingContext.response().setStatusCode(200)
+	            .putHeader("content-type", "application/json; charset=utf-8")
+	            .end(gson.toJson(removed));
+	    } else {
+	        routingContext.response().setStatusCode(204).end();
+	    }
 	}
 	/************************/
 	/***** FINALIZO REST ******/
