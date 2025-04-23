@@ -3,16 +3,16 @@ package es.us.dad.rest;
 import java.util.Objects;
 
 public class ActVenEntity {
-	Integer idfa;
+	Integer idVent;
 	Integer onoff;
 	Long timestampf;
 
-	Integer idP; // id de la placa
-	Integer idG; // id del group
+	Integer idPlaca; // id de la placa
+	Integer idGroup; // id del group
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(idfa);
+		return Objects.hash(idVent);
 	}
 
 	@Override
@@ -24,15 +24,15 @@ public class ActVenEntity {
 		if (getClass() != obj.getClass())
 			return false;
 		ActVenEntity other = (ActVenEntity) obj;
-		return Objects.equals(idfa, other.idfa);
+		return Objects.equals(idVent, other.idVent);
 	}
 
-	public Integer getIdfa() {
-		return idfa;
+	public Integer getIdVent() {
+		return idVent;
 	}
 
-	public void setIdfa(Integer idfa) {
-		this.idfa = idfa;
+	public void setIdVent(Integer idVent) {
+		this.idVent = idVent;
 	}
 
 	public Integer getOnoff() {
@@ -51,29 +51,29 @@ public class ActVenEntity {
 		this.timestampf = timestampf;
 	}
 
-	public Integer getIdP() {
-		return idP;
+	public Integer getIdPlaca() {
+		return idPlaca;
 	}
 
-	public void setIdP(Integer idP) {
-		this.idP = idP;
+	public void setIdPlaca(Integer idPlaca) {
+		this.idPlaca = idPlaca;
 	}
 
-	public Integer getIdG() {
-		return idG;
+	public Integer getIdGroup() {
+		return idGroup;
 	}
 
-	public void setIdG(Integer idG) {
-		this.idG = idG;
+	public void setIdGroup(Integer idGroup) {
+		this.idGroup = idGroup;
 	}
 
-	public ActVenEntity(Integer idfa, Integer onoff, Long timestampf, Integer idP, Integer idG) {
+	public ActVenEntity(Integer idVent, Integer onoff, Long timestampf, Integer idPlaca, Integer idGroup) {
 		super();
-		this.idfa = idfa;
+		this.idVent = idVent;
 		this.onoff = onoff;
 		this.timestampf = timestampf;
-		this.idP = idP;
-		this.idG = idG;
+		this.idPlaca = idPlaca;
+		this.idGroup = idGroup;
 	}
 
 	public ActVenEntity() {
