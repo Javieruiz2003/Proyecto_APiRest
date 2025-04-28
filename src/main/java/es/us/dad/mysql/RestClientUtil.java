@@ -11,10 +11,10 @@ import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 
 public class RestClientUtil {
-
+	
 	public WebClient client;
 	private Gson gson;
-
+	
 	public RestClientUtil(WebClient client) {
 		gson = new Gson();
 		this.client = client;
@@ -94,6 +94,7 @@ public class RestClientUtil {
 		});
 	}
 
+	
 	/**
 	 * Put request utility
 	 * 
@@ -121,10 +122,10 @@ public class RestClientUtil {
 	/**
 	 * Delete request utility
 	 * 
-	 * @param port     Port
-	 * @param host     Host address
-	 * @param resource URI where resource is provided
-	 * @param promise  Promise to be executed on call finish
+	 * @param port      Port
+	 * @param host      Host address
+	 * @param resource  URI where resource is provided
+	 * @param promise   Promise to be executed on call finish
 	 */
 	public void deleteRequest(Integer port, String host, String resource, Promise<String> promise) {
 		client.deleteAbs(host + ":" + port + "/" + resource).send(elem -> {
@@ -136,4 +137,6 @@ public class RestClientUtil {
 		});
 
 	}
+
+	
 }

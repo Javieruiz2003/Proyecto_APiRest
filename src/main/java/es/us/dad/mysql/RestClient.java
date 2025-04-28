@@ -1,5 +1,8 @@
 package es.us.dad.mysql;
 
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import io.vertx.core.AbstractVerticle;
@@ -30,8 +33,9 @@ public class RestClient extends AbstractVerticle {
 			}
 		});
 
-		// Cambiar el puerto cuando se cambie en otro sitio
-		restClientUtil.getRequest(443, "http://localhost:8083", "api/sensores", Actuador[].class, resList);
+		//Cambiar el puerto cuando se cambie en otro sitio
+		restClientUtil.getRequest(8068, "http://localhost", "api/sensores", 
+				Actuador[].class, resList);
 
 		/* --------------- GET one request --------------- */
 
@@ -45,72 +49,51 @@ public class RestClient extends AbstractVerticle {
 			}
 		});
 
-		restClientUtil.getRequest(443, "http://localhost:8083", "api/sensores/1", Actuador.class, res);
+		restClientUtil.getRequest(8068, "http://localhost", "api/sensores/1", 
+				Actuador.class, res);
 
-		/* --------------- GET request con parámetros--------------- */
-		/*
-		 * Promise<UserEntity> resWithParams = Promise.promise();
-		 * resWithParams.future().onComplete(complete -> { if (complete.succeeded()) {
-		 * System.out.println("GetOne With params");
-		 * System.out.println(complete.result().toString()); } else {
-		 * System.out.println(complete.cause().toString()); } }); Map<String, String>
-		 * params = new HashMap<String, String>(); params.put("iduser", "3");
-		 * params.put("otroparam", "123123"); params.put("otroparam2", "hola");
-		 * restClientUtil.getRequestWithParams(443,
-		 * "https://6238e3ff00ed1dbc5ab885fb.mockapi.io", "api/v1/users/1",
-		 * UserEntity.class, resWithParams, params);
-		 * 
-		 * /* --------------- POST request ---------------
-		 * 
-		 * Promise<UserEntity> resPost = Promise.promise();
-		 * resPost.future().onComplete(complete -> { if (complete.succeeded()) {
-		 * System.out.println("Post One");
-		 * System.out.println(complete.result().toString()); } else {
-		 * System.out.println(complete.cause().toString()); } });
-		 * 
-		 * Calendar birthdate = Calendar.getInstance(); birthdate.set(Calendar.YEAR,
-		 * 1985); birthdate.set(Calendar.MONDAY, Calendar.JULY);
-		 * birthdate.set(Calendar.DAY_OF_MONTH, 4);
-		 * 
-		 * restClientUtil.postRequest(443,
-		 * "https://6238e3ff00ed1dbc5ab885fb.mockapi.io", "api/v1/users", new
-		 * UserEntity(300, "Nuevo", "Usuario", birthdate.getTimeInMillis(),
-		 * "nuevo_usuario", "pass"), UserEntity.class, resPost);
-		 * 
-		 * /* --------------- PUT request ---------------
-		 * 
-		 * Promise<UserEntity> resPut = Promise.promise();
-		 * resPost.future().onComplete(complete -> { if (complete.succeeded()) {
-		 * System.out.println("Put"); System.out.println(complete.result().toString());
-		 * } else { System.out.println(complete.cause().toString()); } });
-		 * 
-		 * Calendar birthdate2 = Calendar.getInstance(); birthdate2.set(Calendar.YEAR,
-		 * 1985); birthdate2.set(Calendar.MONDAY, Calendar.JULY);
-		 * birthdate2.set(Calendar.DAY_OF_MONTH, 4);
-		 * 
-		 * restClientUtil.putRequest(443, "https://6238e3ff00ed1dbc5ab885fb.mockapi.io",
-		 * "api/v1/users/1", new UserEntity(300, "Edito", "Usuario",
-		 * birthdate.getTimeInMillis(), "nuevo_usuario", "pass"), UserEntity.class,
-		 * resPut);
-		 * 
-		 * /* --------------- REMOVE request ---------------
-		 * 
-		 * Promise<String> resDelete = Promise.promise();
-		 * resDelete.future().onComplete(complete -> { if (complete.succeeded()) {
-		 * System.out.println("Remove One");
-		 * System.out.println(complete.result().toString()); } else {
-		 * System.out.println(complete.cause().toString()); } }).onFailure(fail -> {
-		 * System.out.println("Remove One"); System.out.println(fail.toString()); });
-		 * 
-		 * restClientUtil.deleteRequest(443,
-		 * "https://6238e3ff00ed1dbc5ab885fb.mockapi.io", "api/v1/users/3", resDelete);
-		 * 
-		 */
+
+		// --------------- POST request --------------- 
+
+		Promise<SensorValue> resPost = Promise.promise();
+		resPost.future().onComplete(complete -> {
+			if (complete.succeeded()) {
+				System.out.println("Post SensorValue");
+				System.out.println(complete.result().toString());
+			} else {
+				System.out.println(complete.cause().toString());
+			}
+		});
+
+			
+	
+		restClientUtil.postRequest(8068, "http://localhost", "api/sensorValue1",
+				new SensorValue(44,2, (float)3, (long)0),
+				SensorValue.class, resPost);
+		
+	
+		// --------------- POST request --------------- 
+
+		Promise<ActuadorState> postActuadorState = Promise.promise();
+		resPost.future().onComplete(complete -> {
+			if (complete.succeeded()) {
+				System.out.println("Post ActuadorState");
+				System.out.println(complete.result().toString());
+			} else {
+				System.out.println(complete.cause().toString());
+			}
+		});
+
+		restClientUtil.postRequest(8068, "http://localhost", "api/actuatorState",
+				new ActuadorState(44, 2, true, (long) 0), ActuadorState.class, postActuadorState);
+				
+			
+			
 		/* --------------- LAUNCH local server --------------- */
 		vertx.deployVerticle(RestServer.class.getName(), deploy -> {
 			if (deploy.succeeded()) {
 				System.out.println("Verticle deployed");
-			} else {
+			}else {
 				System.out.println("Error deploying verticle");
 			}
 		});
