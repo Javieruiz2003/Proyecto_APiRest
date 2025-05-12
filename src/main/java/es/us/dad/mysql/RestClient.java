@@ -33,7 +33,7 @@ public class RestClient extends AbstractVerticle {
         vertx.createHttpServer().requestHandler(router).listen(8080, http -> {
             if (http.succeeded()) {
                 startPromise.complete();
-                System.out.println("✅ Business API running on port 8080");
+                System.out.println("Business API running on port 8080");
             } else {
                 startPromise.fail(http.cause());
             }

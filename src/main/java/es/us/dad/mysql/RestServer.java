@@ -34,18 +34,10 @@ public class RestServer extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startFuture) {
-    	
-
-
-		///
-
-		
-		
-		// Establezco mqtt
-	
-		
-		
-		///
+    
+		 ///////////////////////
+    	/** ESTABLEZCO MQTT **/
+       ///////////////////////
     	
     	mqttClient = MqttClient.create(vertx, new MqttClientOptions().setAutoKeepAlive(true));
 		
@@ -58,9 +50,11 @@ public class RestServer extends AbstractVerticle {
 			});
 		
 		});
-		
-    			
-        // Configuración de MySQL
+    	
+		 //////////////////////////////
+		/** CONFIGURACIÓN de MySQL **/
+       //////////////////////////////
+        
         MySQLConnectOptions connectOptions = new MySQLConnectOptions().setPort(3306).setHost("localhost")
             .setDatabase("proyectodad").setUser("BBDD_dad").setPassword("dad");
 
@@ -71,13 +65,16 @@ public class RestServer extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.route().handler(BodyHandler.create()); // Para leer JSON del body
 
+		 /////////////////
+		/** ENDPOINTS **/
+       /////////////////
+        
         // Endpoints para Sensores
         router.get("/api/sensores").handler(this::getAllSensores);
         router.get("/api/sensores/:id").handler(this::getSensorById);
         router.put("/api/sensores/:id").handler(this::updateSensor);
         router.post("/api/sensores").handler(this::addSensor);
         router.delete("/api/sensores/:id").handler(this::deleteSensor);
-        
         
         // Endpoints para actuador
         router.get("/api/actuadores").handler(this::getAllActuador);
@@ -109,17 +106,20 @@ public class RestServer extends AbstractVerticle {
         // Endpoints para actuatorState
         router.get("/api/actuatorState/:id").handler(this::getActuatorStateById);
         router.post("/api/actuatorState").handler(this::addActuatorState);
-      //router.get("/api/actuator-state/:id/latest").handler(this::getLatestActuatorState);
+        router.get("/api/actuatorState/:id/latest").handler(this::getLatestActuatorState);
         
-        //Consultar el grupo del sensor para publicar en el canal MQTT correcto.
         
-       /* Para enviar un comando MQTT correctamente, el sistema necesita:
+        /**
+         
+        Consultar el grupo del sensor para publicar en el canal MQTT correcto.
+        
+        Para enviar un comando MQTT correctamente, el sistema necesita:
         	1. Dado un sensor ID, encontrar a qué dispositivo pertenece
-        	2. Dado el dispositivo ID, encontrar a qué grupo pertenece*/
-      //Determina el grupo asociado al sensor 
-		// router.get("/api/sensors/:id/grupo").handler(this::getSensorGroupInfo);
+        	2. Dado el dispositivo ID, encontrar a qué grupo pertenece
+        Determina el grupo asociado al sensor 
+		router.get("/api/sensors/:id/grupo").handler(this::getSensorGroupInfo);
         
-        
+        **/
 
         // Iniciar el servidor HTTP
         vertx.createHttpServer().requestHandler(router::handle).listen(8059, result -> {
@@ -128,12 +128,15 @@ public class RestServer extends AbstractVerticle {
 			} else {
 				startFuture.fail(result.cause());
 			}
-            });
+        });
     }
 
-    // ===== MÉTODOS PARA MANEJAR RUTAS =====
-
-    /**SENSORES**/
+	 //////////////////////////////////
+	/** MÉTODOS PARA MANEJAR RUTAS **/
+   //////////////////////////////////
+    
+    	/** SENSORES **/
+    
     private void getAllSensores(RoutingContext ctx) {
         mySqlClient.query("SELECT * FROM proyectodad.sensor;")
             .execute(res -> {
@@ -159,8 +162,6 @@ public class RestServer extends AbstractVerticle {
             });
     }
     
-  
-
     private void getSensorById(RoutingContext ctx) {
         String id = ctx.pathParam("id"); // Obtiene el ID del path
         mySqlClient.preparedQuery("SELECT * FROM proyectodad.sensor WHERE id = ?;")
@@ -264,12 +265,8 @@ public class RestServer extends AbstractVerticle {
                 }
             });
     }
-    
-    
-    
-
-    
-    /**ACTUADORES**/
+    	
+    	/** ACTUADORES **/
     
     private void getAllActuador(RoutingContext ctx) {
         mySqlClient.query("SELECT * FROM proyectodad.actuador;")
@@ -411,7 +408,8 @@ public class RestServer extends AbstractVerticle {
             });
     }
     
-    /**DISPOSITIVOS**/
+    	/** DISPOSITIVOS **/
+    
     private void getAllDispositivos(RoutingContext ctx) {
         mySqlClient.query("SELECT * FROM proyectodad.dispositivo;")
             .execute(res -> {
@@ -542,10 +540,9 @@ public class RestServer extends AbstractVerticle {
                 }
             });
     }
+
+    	/** GRUPOS **/
     
-   
-    
-    /**GRUPOS**/
     private void getAllGrupos(RoutingContext ctx) {
         mySqlClient.query("SELECT * FROM proyectodad.grupo;")
             .execute(res -> {
@@ -622,7 +619,7 @@ public class RestServer extends AbstractVerticle {
                                 .encode());
                     }
                 });
-        }
+    }
   
     private void addGrupo(RoutingContext routing) {
         try {
@@ -671,9 +668,8 @@ public class RestServer extends AbstractVerticle {
             });
     }
     
-   
+    	/** SENSORVALUE **/
     
-    /**SENSORVALUE**/
     private void getSensorValueById(RoutingContext ctx) {
         String id = ctx.pathParam("id"); // Obtiene el ID del path
         mySqlClient.preparedQuery("SELECT * FROM proyectodad.sensorValue WHERE id = ?;")
@@ -753,7 +749,8 @@ public class RestServer extends AbstractVerticle {
 					}
 				});
 	}
- /**ACTUATORSTATE**/
+ 
+		/**ACTUATORSTATE**/
     
     private void getActuatorStateById(RoutingContext ctx) {
         String id = ctx.pathParam("id"); // Obtiene el ID del path
@@ -783,9 +780,6 @@ public class RestServer extends AbstractVerticle {
                 }
             });
     }
-
-   
-    
     
     private void addActuatorState(RoutingContext ctx) {
         try {
@@ -837,7 +831,5 @@ public class RestServer extends AbstractVerticle {
 					}
 				});
 	}
-
-   
     
 }
