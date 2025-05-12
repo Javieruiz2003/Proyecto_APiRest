@@ -1,10 +1,6 @@
 package es.us.dad.mysql;
 
 
-
-
-
-
 import com.google.gson.Gson;
 
 import io.netty.handler.codec.mqtt.MqttQoS;
@@ -26,7 +22,10 @@ import io.vertx.sqlclient.Tuple;
 
 public class RestServer extends AbstractVerticle {
 
-    private MySQLPool mySqlClient;
+	public static final int puertohttp = 8086;
+    
+    
+	private MySQLPool mySqlClient;
 	MqttClient mqttClient;
   
     private final Gson gson = new Gson();
@@ -122,7 +121,7 @@ public class RestServer extends AbstractVerticle {
         **/
 
         // Iniciar el servidor HTTP
-        vertx.createHttpServer().requestHandler(router::handle).listen(8059, result -> {
+        vertx.createHttpServer().requestHandler(router::handle).listen(puertohttp, result -> {
 			if (result.succeeded()) {
 				startFuture.complete();
 			} else {

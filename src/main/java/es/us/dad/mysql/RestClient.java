@@ -12,6 +12,9 @@ import io.vertx.ext.web.handler.BodyHandler;
 public class RestClient extends AbstractVerticle {
 
     private RestClientUtil restClientUtil;
+    
+    int puertoBajoNivel = RestServer.puertohttp;
+    int puertoAltoNivel = 8080;
 
     @Override
     public void start(Promise<Void> startPromise) {
@@ -30,10 +33,10 @@ public class RestClient extends AbstractVerticle {
         router.get("/api/business/group/:id_grupo/sensorValue/latest").handler(this::handleGetLatestGroupSensorValues);
         router.get("/api/business/group/:id_grupo/actuatorStates/latest").handler(this::handleGetLatestGroupActuatorStates);
 
-        vertx.createHttpServer().requestHandler(router).listen(8080, http -> {
+        vertx.createHttpServer().requestHandler(router).listen(puertoAltoNivel, http -> {
             if (http.succeeded()) {
                 startPromise.complete();
-                System.out.println("Business API running on port 8080");
+                System.out.println("Business API running on port "+ puertoAltoNivel);
             } else {
                 startPromise.fail(http.cause());
             }
@@ -44,7 +47,7 @@ public class RestClient extends AbstractVerticle {
         SensorValue sensor = ctx.getBodyAsJson().mapTo(SensorValue.class);
 
         Promise<SensorValue> promise = Promise.promise();
-        restClientUtil.postRequest(8068, "http://localhost", "api/sensorValue", sensor, SensorValue.class, promise);
+        restClientUtil.postRequest(puertoBajoNivel, "http://localhost", "api/sensorValue", sensor, SensorValue.class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -59,7 +62,7 @@ public class RestClient extends AbstractVerticle {
     private void handleGetLatestSensorValues(RoutingContext ctx) {
         String id = ctx.pathParam("id_sensor");
         Promise<SensorValue[]> promise = Promise.promise();
-        restClientUtil.getRequest(8068, "http://localhost", "api/sensores/" + id + "/latest", SensorValue[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/sensores/" + id + "/latest", SensorValue[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -73,7 +76,7 @@ public class RestClient extends AbstractVerticle {
     private void handleGetLatestActuatorStates(RoutingContext ctx) {
         String id = ctx.pathParam("id_actuador");
         Promise<ActuadorState[]> promise = Promise.promise();
-        restClientUtil.getRequest(8068, "http://localhost", "api/actuadores/" + id + "/latest", ActuadorState[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/actuadores/" + id + "/latest", ActuadorState[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -87,7 +90,7 @@ public class RestClient extends AbstractVerticle {
     private void handleGetLatestGroupSensorValues(RoutingContext ctx) {
         String id = ctx.pathParam("id_grupo");
         Promise<SensorValue[]> promise = Promise.promise();
-        restClientUtil.getRequest(8068, "http://localhost", "api/grupos/" + id + "/sensorValue/latest", SensorValue[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/grupos/" + id + "/sensorValue/latest", SensorValue[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -101,7 +104,7 @@ public class RestClient extends AbstractVerticle {
     private void handleGetLatestGroupActuatorStates(RoutingContext ctx) {
         String id = ctx.pathParam("id_grupo");
         Promise<ActuadorState[]> promise = Promise.promise();
-        restClientUtil.getRequest(8068, "http://localhost", "api/grupos/" + id + "/actuatorState/latest", ActuadorState[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/grupos/" + id + "/actuatorState/latest", ActuadorState[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
