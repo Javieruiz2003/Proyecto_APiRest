@@ -1,103 +1,119 @@
 package es.us.dad.mysql;
 
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Stream;
-
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
+import io.vertx.core.json.Json;
+
+import es.us.dad.mysql.RestClientUtil;
+import es.us.dad.mysql.SensorValue;
+import es.us.dad.mysql.ActuadorState;
 
 public class RestClient extends AbstractVerticle {
 
-	public RestClientUtil restClientUtil;
+    private RestClientUtil restClientUtil;
 
-	public void start(Promise<Void> startFuture) {
-		WebClientOptions options = new WebClientOptions().setUserAgent("RestClientApp/2.0.2.1");
-		options.setKeepAlive(false);
-		restClientUtil = new RestClientUtil(WebClient.create(vertx, options));
+    @Override
+    public void start(Promise<Void> startPromise) {
+        WebClientOptions options = new WebClientOptions().setUserAgent("RestClientApp/2.0.2.1");
+        WebClient client = WebClient.create(vertx, options);
+        options.setKeepAlive(false);
+        restClientUtil = new RestClientUtil(client);
 
-		/* --------------- GET many request --------------- */
+        Router router = Router.router(vertx);
+        router.route().handler(BodyHandler.create());
 
-		Promise<Actuador[]> resList = Promise.promise();
-		resList.future().onComplete(complete -> {
-			if (complete.succeeded()) {
-				System.out.println("GetAll:");
-				Stream.of(complete.result()).forEach(elem -> {
-					System.out.println(elem.toString());
-				});
-			} else {
-				System.out.println(complete.cause().toString());
-			}
-		});
+        // Endpoints
+        router.post("/api/business/sensorData").handler(this::handlePostSensorData);
+        router.get("/api/business/sensorValues/:id_sensor/latest").handler(this::handleGetLatestSensorValues);
+        router.get("/api/business/actuatorStates/:id_actuador/latest").handler(this::handleGetLatestActuatorStates);
+        router.get("/api/business/group/:id_grupo/sensorValues/latest").handler(this::handleGetLatestGroupSensorValues);
+        router.get("/api/business/group/:id_grupo/actuatorStates/latest").handler(this::handleGetLatestGroupActuatorStates);
 
-		//Cambiar el puerto cuando se cambie en otro sitio
-		restClientUtil.getRequest(8068, "http://localhost", "api/sensores", 
-				Actuador[].class, resList);
+        vertx.createHttpServer().requestHandler(router).listen(8080, http -> {
+            if (http.succeeded()) {
+                startPromise.complete();
+                System.out.println("✅ Business API running on port 8080");
+            } else {
+                startPromise.fail(http.cause());
+            }
+        });
+    }
 
-		/* --------------- GET one request --------------- */
+    private void handlePostSensorData(RoutingContext ctx) {
+        SensorValue sensor = ctx.getBodyAsJson().mapTo(SensorValue.class);
 
-		Promise<Actuador> res = Promise.promise();
-		res.future().onComplete(complete -> {
-			if (complete.succeeded()) {
-				System.out.println("GetOne");
-				System.out.println(complete.result().toString());
-			} else {
-				System.out.println(complete.cause().toString());
-			}
-		});
+        Promise<SensorValue> promise = Promise.promise();
+        restClientUtil.postRequest(8068, "http://localhost", "api/sensorValue", sensor, SensorValue.class, promise);
 
-		restClientUtil.getRequest(8068, "http://localhost", "api/sensores/1", 
-				Actuador.class, res);
+        promise.future().onComplete(ar -> {
+            if (ar.succeeded()) {
+                ctx.response().setStatusCode(201).putHeader("Content-Type", "application/json")
+                        .end(Json.encodePrettily(ar.result()));
+            } else {
+                ctx.response().setStatusCode(500).end(ar.cause().toString());
+            }
+        });
+    }
 
+    private void handleGetLatestSensorValues(RoutingContext ctx) {
+        String id = ctx.pathParam("id_sensor");
+        Promise<SensorValue[]> promise = Promise.promise();
+        restClientUtil.getRequest(8068, "http://localhost", "api/sensores/" + id + "/latest", SensorValue[].class, promise);
 
-		// --------------- POST request --------------- 
+        promise.future().onComplete(ar -> {
+            if (ar.succeeded()) {
+                ctx.response().putHeader("Content-Type", "application/json").end(Json.encodePrettily(ar.result()));
+            } else {
+                ctx.response().setStatusCode(500).end(ar.cause().toString());
+            }
+        });
+    }
 
-		Promise<SensorValue> resPost = Promise.promise();
-		resPost.future().onComplete(complete -> {
-			if (complete.succeeded()) {
-				System.out.println("Post SensorValue");
-				System.out.println(complete.result().toString());
-			} else {
-				System.out.println(complete.cause().toString());
-			}
-		});
+    private void handleGetLatestActuatorStates(RoutingContext ctx) {
+        String id = ctx.pathParam("id_actuador");
+        Promise<ActuadorState[]> promise = Promise.promise();
+        restClientUtil.getRequest(8068, "http://localhost", "api/actuadores/" + id + "/latest", ActuadorState[].class, promise);
 
-			
-	
-		restClientUtil.postRequest(8068, "http://localhost", "api/sensorValue1",
-				new SensorValue(44,2, (float)3, (long)0),
-				SensorValue.class, resPost);
-		
-	
-		// --------------- POST request --------------- 
+        promise.future().onComplete(ar -> {
+            if (ar.succeeded()) {
+                ctx.response().putHeader("Content-Type", "application/json").end(Json.encodePrettily(ar.result()));
+            } else {
+                ctx.response().setStatusCode(500).end(ar.cause().toString());
+            }
+        });
+    }
 
-		Promise<ActuadorState> postActuadorState = Promise.promise();
-		resPost.future().onComplete(complete -> {
-			if (complete.succeeded()) {
-				System.out.println("Post ActuadorState");
-				System.out.println(complete.result().toString());
-			} else {
-				System.out.println(complete.cause().toString());
-			}
-		});
+    private void handleGetLatestGroupSensorValues(RoutingContext ctx) {
+        String id = ctx.pathParam("id_grupo");
+        Promise<SensorValue[]> promise = Promise.promise();
+        restClientUtil.getRequest(8068, "http://localhost", "api/grupos/" + id + "/sensorValue/latest", SensorValue[].class, promise);
 
-		restClientUtil.postRequest(8068, "http://localhost", "api/actuatorState",
-				new ActuadorState(44, 2, true, (long) 0), ActuadorState.class, postActuadorState);
-				
-			
-			
-		/* --------------- LAUNCH local server --------------- */
-		vertx.deployVerticle(RestServer.class.getName(), deploy -> {
-			if (deploy.succeeded()) {
-				System.out.println("Verticle deployed");
-			}else {
-				System.out.println("Error deploying verticle");
-			}
-		});
+        promise.future().onComplete(ar -> {
+            if (ar.succeeded()) {
+                ctx.response().putHeader("Content-Type", "application/json").end(Json.encodePrettily(ar.result()));
+            } else {
+                ctx.response().setStatusCode(500).end(ar.cause().toString());
+            }
+        });
+    }
 
-	}
+    private void handleGetLatestGroupActuatorStates(RoutingContext ctx) {
+        String id = ctx.pathParam("id_grupo");
+        Promise<ActuadorState[]> promise = Promise.promise();
+        restClientUtil.getRequest(8068, "http://localhost", "api/grupos/" + id + "/actuatorState/latest", ActuadorState[].class, promise);
 
+        promise.future().onComplete(ar -> {
+            if (ar.succeeded()) {
+                ctx.response().putHeader("Content-Type", "application/json").end(Json.encodePrettily(ar.result()));
+            } else {
+                ctx.response().setStatusCode(500).end(ar.cause().toString());
+            }
+        });
+    }
 }
