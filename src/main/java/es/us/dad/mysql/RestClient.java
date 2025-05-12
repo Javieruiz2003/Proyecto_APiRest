@@ -30,9 +30,9 @@ public class RestClient extends AbstractVerticle {
 
         // Endpoints
         router.post("/api/business/sensorData").handler(this::handlePostSensorData);
-        router.get("/api/business/sensorValues/:id_sensor/latest").handler(this::handleGetLatestSensorValues);
+        router.get("/api/business/sensorValue/:id_sensor/latest").handler(this::handleGetLatestSensorValues);
         router.get("/api/business/actuatorStates/:id_actuador/latest").handler(this::handleGetLatestActuatorStates);
-        router.get("/api/business/group/:id_grupo/sensorValues/latest").handler(this::handleGetLatestGroupSensorValues);
+        router.get("/api/business/group/:id_grupo/sensorValue/latest").handler(this::handleGetLatestGroupSensorValues);
         router.get("/api/business/group/:id_grupo/actuatorStates/latest").handler(this::handleGetLatestGroupActuatorStates);
 
         vertx.createHttpServer().requestHandler(router).listen(8080, http -> {

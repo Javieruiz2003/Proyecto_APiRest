@@ -7,7 +7,7 @@ package es.us.dad.mysql;
 
 import com.google.gson.Gson;
 
-
+import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonArray;
@@ -15,7 +15,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
-
+import io.vertx.mqtt.MqttClient;
+import io.vertx.mqtt.MqttClientOptions;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLPool;
 import io.vertx.sqlclient.PoolOptions;
@@ -26,6 +27,7 @@ import io.vertx.sqlclient.Tuple;
 public class RestServer extends AbstractVerticle {
 
     private MySQLPool mySqlClient;
+	MqttClient mqttClient;
   
     private final Gson gson = new Gson();
 	
@@ -33,9 +35,32 @@ public class RestServer extends AbstractVerticle {
     @Override
     public void start(Promise<Void> startFuture) {
     	
+
+
+		///
+
+		
+		
+		// Establezco mqtt
+	
+		
+		
+		///
     	
+    	mqttClient = MqttClient.create(vertx, new MqttClientOptions().setAutoKeepAlive(true));
+		
+		mqttClient.connect(1883, "localhost", s -> {
+
+			mqttClient.subscribe("twmp", MqttQoS.AT_LEAST_ONCE.value(), handler -> {
+				if (handler.succeeded()) {
+					System.out.println("SuscripciÃ³n " + mqttClient.clientId());
+				}
+			});
+		
+		});
+		
     			
-        // Configuración de MySQL
+        // ConfiguraciÃ³n de MySQL
         MySQLConnectOptions connectOptions = new MySQLConnectOptions().setPort(3306).setHost("localhost")
             .setDatabase("proyectodad").setUser("BBDD_dad").setPassword("dad");
 
@@ -78,22 +103,26 @@ public class RestServer extends AbstractVerticle {
         // Endpoints para sensorValue
         router.get("/api/sensorValue/:id").handler(this::getSensorValueById);
         router.post("/api/sensorValue").handler(this::addSensorValue);
-        router.get("/api/sensor-value/:id/latest").handler(this::getLatestSensorValue);
+        //Ãºltimos 10  valores
+        router.get("/api/business/sensorValues/:id/latest").handler(this::getLatestSensorValue);
         
         // Endpoints para actuatorState
         router.get("/api/actuatorState/:id").handler(this::getActuatorStateById);
         router.post("/api/actuatorState").handler(this::addActuatorState);
+      //router.get("/api/actuator-state/:id/latest").handler(this::getLatestActuatorState);
         
         //Consultar el grupo del sensor para publicar en el canal MQTT correcto.
         
        /* Para enviar un comando MQTT correctamente, el sistema necesita:
-        	1. Dado un sensor ID, encontrar a qué dispositivo pertenece
-        	2. Dado el dispositivo ID, encontrar a qué grupo pertenece*/
-        //Determina el grupo asociado al sensor 
-        router.get("/api/sensors/:id/grupo").handler(this::getSensorGroupInfo);
+        	1. Dado un sensor ID, encontrar a quÃ© dispositivo pertenece
+        	2. Dado el dispositivo ID, encontrar a quÃ© grupo pertenece*/
+      //Determina el grupo asociado al sensor 
+		// router.get("/api/sensors/:id/grupo").handler(this::getSensorGroupInfo);
+        
+        
 
         // Iniciar el servidor HTTP
-        vertx.createHttpServer().requestHandler(router::handle).listen(8068, result -> {
+        vertx.createHttpServer().requestHandler(router::handle).listen(8059, result -> {
 			if (result.succeeded()) {
 				startFuture.complete();
 			} else {
@@ -102,10 +131,9 @@ public class RestServer extends AbstractVerticle {
             });
     }
 
-    // ===== MÉTODOS PARA MANEJAR RUTAS =====
+    // ===== MÃ‰TODOS PARA MANEJAR RUTAS =====
 
     /**SENSORES**/
-    
     private void getAllSensores(RoutingContext ctx) {
         mySqlClient.query("SELECT * FROM proyectodad.sensor;")
             .execute(res -> {
@@ -147,11 +175,8 @@ public class RestServer extends AbstractVerticle {
                     } else {
                         // Convierte la fila a un objeto Sensor y luego a JSON
                         Row row = resultSet.iterator().next();
-                        Sensor sensor = new Sensor(
-                            row.getInteger("id"),row.getString("nombre"),
-                            row.getString("tipo"),row.getString("identificador"),
-                            row.getInteger("id_dispositivo")
-                        );
+                        Sensor sensor = new Sensor(row.getInteger("id"),row.getString("nombre"),
+                            row.getString("tipo"),row.getString("identificador"),row.getInteger("id_dispositivo"));
                         ctx.response()
                             .setStatusCode(200)
                             .putHeader("Content-Type", "application/json")
@@ -165,39 +190,63 @@ public class RestServer extends AbstractVerticle {
             });
     }
 
-    private void addSensor(RoutingContext ctx) {
-        JsonObject body = ctx.getBodyAsJson();
-        
-        mySqlClient.preparedQuery(
-            "INSERT INTO proyectodad.sensor (nombre, tipo, identificador, id_dispositivo) VALUES (?, ?, ?, ?);")
-            .execute(Tuple.of(
-                body.getString("nombre"),
-                body.getString("tipo"),
-                body.getString("identificador"),
-                body.getInteger("id_dispositivo")),
-            res -> {
-                if (res.succeeded()) {
-                    // Devuelve el ID del sensor creado (opcional pero útil para el cliente)
-                    ctx.response()
-                        .setStatusCode(201)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject()
-                            .put("message", "Sensor creado correctamente")
-         
-                            .encode());
-                } else {
-                    // Manejo específico de errores de SQL (ej: clave foránea inválida)
-                    if (res.cause().getMessage().contains("foreign key constraint")) {
+    private void updateSensor(RoutingContext ctx) {
+ 
+            String id = ctx.pathParam("id");
+            Sensor sensor = gson.fromJson(ctx.getBodyAsString(), Sensor.class);
+            
+            mySqlClient.preparedQuery(
+                "UPDATE sensor SET nombre = ?, tipo = ?, identificador = ?, id_dispositivo = ? WHERE id = ?")
+                .execute(Tuple.of(sensor.getNombre(),sensor.getTipo(),sensor.getIdentificador(),
+                		sensor.getid_dispositivo(),id),
+                res -> {
+                    if (res.succeeded()) {
                         ctx.response()
-                            .setStatusCode(400)
-                            .end("Error: El id_dispositivo no existe");
+                            .setStatusCode(200)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(sensor).encode());
                     } else {
                         ctx.response()
                             .setStatusCode(500)
-                            .end("Error al crear sensor: " + res.cause().getMessage());
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
                     }
-                }
-            });
+                });
+        
+    }
+
+    private void addSensor(RoutingContext ctx) {
+        try {
+            Sensor sensor = gson.fromJson(ctx.getBodyAsString(), Sensor.class);
+            
+            mySqlClient.preparedQuery(
+                "INSERT INTO sensor (nombre, tipo, identificador, id_dispositivo) VALUES (?, ?, ?, ?)")
+                .execute(Tuple.of(sensor.getNombre(),sensor.getTipo(),sensor.getIdentificador(),sensor.getid_dispositivo()),
+                res -> {
+                    if (res.succeeded()) {
+                        ctx.response()
+                            .setStatusCode(201)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(sensor).encode());
+                    } else {
+                        ctx.response()
+                            .setStatusCode(500)
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
+                    }
+                });
+        } catch (Exception e) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "JSON invÃ¡lido: " + e.getMessage())
+                    .encode());
+        }
     }
 
     private void deleteSensor(RoutingContext ctx) {
@@ -217,31 +266,7 @@ public class RestServer extends AbstractVerticle {
     }
     
     
-    private void updateSensor(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        JsonObject body = ctx.getBodyAsJson();
-
-        mySqlClient.preparedQuery(
-            "UPDATE sensor SET nombre = ?, tipo = ?, identificador = ?, id_dispositivo = ? WHERE id = ?")
-            .execute(Tuple.of(
-                body.getString("nombre"),
-                body.getString("tipo"),
-                body.getString("identificador"),
-                body.getInteger("id_dispositivo"),
-                id),
-            res -> {
-                if (res.succeeded()) {
-                    ctx.response()
-                        .setStatusCode(200)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject().put("status", "updated").encode());
-                } else {
-                    ctx.response()
-                        .setStatusCode(500)
-                        .end("Error: " + res.cause().getMessage());
-                }
-            });
-    }
+    
 
     
     /**ACTUADORES**/
@@ -303,65 +328,71 @@ public class RestServer extends AbstractVerticle {
             });
     }
 
-    private void addActuador(RoutingContext ctx) {
-    	 JsonObject body = ctx.getBodyAsJson();
-         
-         mySqlClient.preparedQuery(
-             "INSERT INTO proyectodad.actuador (nombre, tipo, identificador, id_dispositivo) VALUES (?, ?, ?, ?);")
-             .execute(Tuple.of(
-                 body.getString("nombre"),
-                 body.getString("tipo"),
-                 body.getString("identificador"),
-                 body.getInteger("id_dispositivo")),
-             res -> {
-                 if (res.succeeded()) {
-                     // Devuelve el ID del sensor creado (opcional pero útil para el cliente)
-                     ctx.response()
-                         .setStatusCode(201)
-                         .putHeader("Content-Type", "application/json")
-                         .end(new JsonObject()
-                             .put("message", "Actuador creado correctamente")
-          
-                             .encode());
-                 } else {
-                     // Manejo específico de errores de SQL (ej: clave foránea inválida)
-                     if (res.cause().getMessage().contains("foreign key constraint")) {
-                         ctx.response()
-                             .setStatusCode(400)
-                             .end("Error: El id_dispositivo no existe");
-                     } else {
-                         ctx.response()
-                             .setStatusCode(500)
-                             .end("Error al crear actuador: " + res.cause().getMessage());
-                     }
-                 }
-             });
-     }
-    
     private void updateActuador(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        JsonObject body = ctx.getBodyAsJson();
 
-        mySqlClient.preparedQuery(
-            "UPDATE actuador SET nombre = ?, tipo = ?, identificador = ?, id_dispositivo = ? WHERE id = ?")
-            .execute(Tuple.of(
-                body.getString("nombre"),
-                body.getString("tipo"),
-                body.getString("identificador"),
-                body.getInteger("id_dispositivo"),
-                id),
-            res -> {
-                if (res.succeeded()) {
-                    ctx.response()
-                        .setStatusCode(200)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject().put("status", "updated").encode());
-                } else {
-                    ctx.response()
-                        .setStatusCode(500)
-                        .end("Error: " + res.cause().getMessage());
-                }
-            });
+            String id = ctx.pathParam("id");
+            Actuador actuador = gson.fromJson(ctx.getBodyAsString(), Actuador.class);
+            
+            mySqlClient.preparedQuery(
+                "UPDATE actuador SET nombre = ?, tipo = ?, identificador = ?, id_dispositivo = ? WHERE id = ?")
+                .execute(Tuple.of(
+                    actuador.getNombre(),
+                    actuador.getTipo(),
+                    actuador.getIdentificador(),
+                    actuador.getid_dispositivo(),
+                    id),
+                res -> {
+                    if (res.succeeded()) {
+                        ctx.response()
+                            .setStatusCode(200)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(actuador).encode());
+                    } else {
+                        ctx.response()
+                            .setStatusCode(500)
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
+                    }
+                });
+        
+    }
+
+    private void addActuador(RoutingContext ctx) {
+        try {
+            Actuador actuador = gson.fromJson(ctx.getBodyAsString(), Actuador.class);
+            
+            mySqlClient.preparedQuery(
+                "INSERT INTO actuador (nombre, tipo, identificador, id_dispositivo) VALUES (?, ?, ?, ?)")
+                .execute(Tuple.of(
+                    actuador.getNombre(),
+                    actuador.getTipo(),
+                    actuador.getIdentificador(),
+                    actuador.getid_dispositivo()),
+                res -> {
+                    if (res.succeeded()) {
+                        ctx.response()
+                            .setStatusCode(201)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(actuador).encode());
+                    } else {
+                        ctx.response()
+                            .setStatusCode(500)
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
+                    }
+                });
+        } catch (Exception e) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "JSON invÃ¡lido: " + e.getMessage())
+                    .encode());
+        }
     }
 
     private void deleteActuador(RoutingContext ctx) {
@@ -432,38 +463,68 @@ public class RestServer extends AbstractVerticle {
                 }
             });
     }
+    
+    private void updateDispositivo(RoutingContext ctx) {
 
-    private void addDispositivo(RoutingContext ctx) {
-        JsonObject body = ctx.getBodyAsJson();
-        
-        mySqlClient.preparedQuery(
-            "INSERT INTO proyectodad.dispositivo (nombre, id_grupo) VALUES (?, ?);")
-            .execute(Tuple.of(
-                body.getString("nombre"),
-                body.getString("id_grupo")),
-            res -> {
-                if (res.succeeded()) {
-                    // Devuelve el ID del dispositivo creado (opcional pero útil para el cliente)
-                    ctx.response()
-                        .setStatusCode(201)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject()
-                            .put("message", "Dispositivo creado correctamente")
-         
-                            .encode());
-                } else {
-                    // Manejo específico de errores de SQL (ej: clave foránea inválida)
-                    if (res.cause().getMessage().contains("foreign key constraint")) {
+            String id = ctx.pathParam("id");
+            Dispositivo dispositivo = gson.fromJson(ctx.getBodyAsString(), Dispositivo.class);
+            
+            mySqlClient.preparedQuery(
+                "UPDATE dispositivo SET nombre = ?, id_grupo = ? WHERE id = ?")
+                .execute(Tuple.of(
+                    dispositivo.getNombre(),
+                    dispositivo.getId_grupo(),
+                    id),
+                res -> {
+                    if (res.succeeded()) {
                         ctx.response()
-                            .setStatusCode(400)
-                            .end("Error: El id_dispositivo no existe");
+                            .setStatusCode(200)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(dispositivo).encode());
                     } else {
                         ctx.response()
                             .setStatusCode(500)
-                            .end("Error al crear dispositivo: " + res.cause().getMessage());
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
                     }
-                }
-            });
+                });
+        
+    }
+
+    private void addDispositivo(RoutingContext ctx) {
+        try {
+            Dispositivo dispositivo = gson.fromJson(ctx.getBodyAsString(), Dispositivo.class);
+            
+            mySqlClient.preparedQuery(
+                "INSERT INTO dispositivo (nombre, id_grupo) VALUES (?, ?)")
+                .execute(Tuple.of(
+                    dispositivo.getNombre(),
+                    dispositivo.getId_grupo()),
+                res -> {
+                    if (res.succeeded()) {
+                        ctx.response()
+                            .setStatusCode(201)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(dispositivo).encode());
+                    } else {
+                        ctx.response()
+                            .setStatusCode(500)
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
+                    }
+                });
+        } catch (Exception e) {
+            ctx.response()
+                .setStatusCode(400)
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "JSON invÃ¡lido: " + e.getMessage())
+                    .encode());
+        }
     }
 
     private void deleteDispositivo(RoutingContext ctx) {
@@ -482,29 +543,7 @@ public class RestServer extends AbstractVerticle {
             });
     }
     
-    private void updateDispositivo(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        JsonObject body = ctx.getBodyAsJson();
-
-        mySqlClient.preparedQuery(
-            "UPDATE dispositivo SET nombre = ?, id_grupo = ? WHERE id = ?")
-            .execute(Tuple.of(
-                body.getString("nombre"),
-                body.getString("id_grupo"),
-                id),
-            res -> {
-                if (res.succeeded()) {
-                    ctx.response()
-                        .setStatusCode(200)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject().put("status", "updated").encode());
-                } else {
-                    ctx.response()
-                        .setStatusCode(500)
-                        .end("Error: " + res.cause().getMessage());
-                }
-            });
-    }
+   
     
     /**GRUPOS**/
     private void getAllGrupos(RoutingContext ctx) {
@@ -559,27 +598,62 @@ public class RestServer extends AbstractVerticle {
             });
     }
 
-    private void addGrupo(RoutingContext ctx) {
-        JsonObject body = ctx.getBodyAsJson();
+   
+    private void updateGrupo(RoutingContext routing) { 
+    	
+        String idGrupo = routing.request().getParam("id");
+
+        Grupo grupo = gson.fromJson(routing.getBodyAsString(), Grupo.class);
         
-        mySqlClient.preparedQuery(
-            "INSERT INTO proyectodad.grupo (canal_mqtt,nombre) VALUES (?, ?);")
-            .execute(Tuple.of(
-            	body.getString("canal_mqtt"),
-                body.getString("nombre")),
-            res -> {
-                if (res.succeeded()) {
-                    // Devuelve el ID del grupo creado (opcional pero útil para el cliente)
-                    ctx.response()
-                        .setStatusCode(201)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject()
-                            .put("message", "Grupo creado correctamente")
+        mySqlClient.preparedQuery("UPDATE grupo SET canal_mqtt = ?, nombre = ? WHERE id = ?")
+        .execute(Tuple.of(grupo.getCanal_mqtt(), grupo.getNombre(), idGrupo),
+                res -> {
+                    if (res.succeeded()) {
+                        routing.response()
+                            .setStatusCode(200)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(grupo).encode());
+                    } else {
+                        routing.response()
+                            .setStatusCode(500)
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
+                    }
+                });
+        }
+  
+    private void addGrupo(RoutingContext routing) {
+        try {
          
-                            .encode());
+            Grupo sensor = gson.fromJson(routing.getBodyAsString(), Grupo.class);
+
+            mySqlClient.preparedQuery(
+            		"INSERT INTO proyectodad.grupo (id,canal_mqtt,nombre) VALUES (?, ?, ?)"
+            ).execute(
+                Tuple.of(sensor.getId(),sensor.getCanal_mqtt(), sensor.getNombre()),
+                res -> {
+                    if (res.succeeded()) {
+                      
+                        routing.response()
+                            .setStatusCode(201)
+                            .putHeader("Content-Type", "application/json")
+                            .end(JsonObject.mapFrom(sensor).encode());
+                    } else {
+                        routing.response()
+                            .setStatusCode(500)
+                            .end("Error al insertar: " + res.cause().getMessage());
+                    }
                 }
-            });
+            );
+        } catch (Exception e) {
+            routing.response()
+                .setStatusCode(400)
+                .end("JSON invÃ¡lido: " + e.getMessage());
+        }
     }
+ 
 
     private void deleteGrupo(RoutingContext ctx) {
         int id = Integer.parseInt(ctx.pathParam("id"));
@@ -597,28 +671,7 @@ public class RestServer extends AbstractVerticle {
             });
     }
     
-    private void updateGrupo(RoutingContext ctx) {
-        int id = Integer.parseInt(ctx.pathParam("id"));
-        JsonObject body = ctx.getBodyAsJson();
-        mySqlClient.preparedQuery(
-            "UPDATE grupo SET  canal_mqtt = ?, nombre = ? WHERE id = ?")
-            .execute(Tuple.of(
-                body.getString("canal_mqtt"),
-                body.getString("nombre"),
-                id),
-            res -> {
-                if (res.succeeded()) {
-                    ctx.response()
-                        .setStatusCode(200)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject().put("status", "updated").encode());
-                } else {
-                    ctx.response()
-                        .setStatusCode(500)
-                        .end("Error: " + res.cause().getMessage());
-                }
-            });
-    }
+   
     
     /**SENSORVALUE**/
     private void getSensorValueById(RoutingContext ctx) {
@@ -678,7 +731,7 @@ public class RestServer extends AbstractVerticle {
         } catch (Exception e) {
             routing.response()
                 .setStatusCode(400)
-                .end("JSON inválido: " + e.getMessage());
+                .end("JSON invÃ¡lido: " + e.getMessage());
         }
     }
     
@@ -731,110 +784,60 @@ public class RestServer extends AbstractVerticle {
             });
     }
 
-    /*private void addActuatorState(RoutingContext ctx) {
-        JsonObject body = ctx.getBodyAsJson();
-        
-        mySqlClient.preparedQuery(
-            "INSERT INTO proyectodad.actuatorState (id_actuador,estado,timeStamp) VALUES (?, ?, ?);")
-            .execute(Tuple.of(
-            	body.getString("id_actuador"),
-                body.getString("estado"),
-                body.getString("timeStamp")),
-            res -> {
-                if (res.succeeded()) {
-                    // Devuelve el ID del actuatorState creado (opcional pero útil para el cliente)
-                    ctx.response()
-                        .setStatusCode(201)
-                        .putHeader("Content-Type", "application/json")
-                        .end(new JsonObject()
-                            .put("message", "ActuatorState creado correctamente")
-         
-                            .encode());
-                }
-            });
-    }*/
+   
     
     
-    private void addActuatorState(RoutingContext routing) {
+    private void addActuatorState(RoutingContext ctx) {
         try {
-            // 1. Convertir JSON a objeto SensorValue
-            ActuadorState sensor = gson.fromJson(routing.getBodyAsString(), ActuadorState.class);
-
-            // 2. Ejecutar INSERT y devolver el mismo objeto recibido (sin ID)
+            ActuadorState actuatorState = gson.fromJson(ctx.getBodyAsString(), ActuadorState.class);
+            
             mySqlClient.preparedQuery(
-            		"INSERT INTO proyectodad.actuatorState (id,id_actuador,estado,timeStamp) VALUES (?, ?, ?, ?)"
-            ).execute(
-                Tuple.of(sensor.getId(),sensor.getId_actuador(), sensor.getEstado(), sensor.getTimeStamp()),
+                "INSERT INTO actuatorState (id_actuador, estado, timeStamp) VALUES (?, ?, ?)")
+                .execute(Tuple.of(actuatorState.getId_actuador(),actuatorState.getEstado(),
+                    actuatorState.getTimeStamp()),
                 res -> {
                     if (res.succeeded()) {
-                        // 3. Devolver el objeto que recibimos (el cliente sabe qué envió)
-                        routing.response()
+                        ctx.response()
                             .setStatusCode(201)
                             .putHeader("Content-Type", "application/json")
-                            .end(JsonObject.mapFrom(sensor).encode());
+                            .end(JsonObject.mapFrom(actuatorState).encode());
                     } else {
-                        routing.response()
+                        ctx.response()
                             .setStatusCode(500)
-                            .end("Error al insertar: " + res.cause().getMessage());
+                            .putHeader("Content-Type", "application/json")
+                            .end(new JsonObject()
+                                .put("error", res.cause().getMessage())
+                                .encode());
                     }
-                }
-            );
+                });
         } catch (Exception e) {
-            routing.response()
+            ctx.response()
                 .setStatusCode(400)
-                .end("JSON inválido: " + e.getMessage());
+                .putHeader("Content-Type", "application/json")
+                .end(new JsonObject()
+                    .put("error", "JSON invÃ¡lido: " + e.getMessage())
+                    .encode());
         }
     }
  
+    private void getLatestActuatorState(RoutingContext ctx) {
+		int actuadorId = Integer.parseInt(ctx.pathParam("id"));
 
-    private void getSensorGroupInfo(RoutingContext ctx) {
-        int sensorId = Integer.parseInt(ctx.pathParam("id"));
-        
-        // Consulta SQL que obtiene toda la información necesaria en una sola llamada
-        String sql = "SELECT g.id AS grupo_id, g.nombre AS grupo_nombre, g.canal_mqtt, " +
-                     "d.id AS dispositivo_id, d.nombre AS dispositivo_nombre, " +
-                     "s.id AS sensor_id, s.nombre AS sensor_nombre, s.tipo AS sensor_tipo " +
-                     "FROM sensor s " +
-                     "JOIN dispositivo d ON s.id_dispositivo = d.id " +
-                     "JOIN grupo g ON d.id_grupo = g.id " +
-                     "WHERE s.id = ?";
-        
-        mySqlClient.preparedQuery(sql)
-            .execute(Tuple.of(sensorId), res -> {
-                if (res.succeeded()) {
-                    if (res.result().size() > 0) {
-                        Row row = res.result().iterator().next();
-                        JsonObject response = new JsonObject()
-                            .put("sensor", new JsonObject()
-                                .put("id", row.getInteger("sensor_id"))
-                                .put("nombre", row.getString("sensor_nombre"))
-                                .put("tipo", row.getString("sensor_tipo")))
-                            .put("dispositivo", new JsonObject()
-                                .put("id", row.getInteger("dispositivo_id"))
-                                .put("nombre", row.getString("dispositivo_nombre")))
-                            .put("grupo", new JsonObject()
-                                .put("id", row.getInteger("grupo_id"))
-                                .put("nombre", row.getString("grupo_nombre"))
-                                .put("canal_mqtt", row.getString("canal_mqtt")));
-                        
-                        ctx.response()
-                            .putHeader("content-type", "application/json")
-                            .end(response.encode());
-                    } else {
-                        ctx.response()
-                            .setStatusCode(404)
-                            .end(new JsonObject()
-                                .put("error", "Sensor no encontrado")
-                                .encode());
-                    }
-                } else {
-                    ctx.response()
-                        .setStatusCode(500)
-                        .end(new JsonObject()
-                            .put("error", "Error en la base de datos")
-                            .encode());
-                }
-            });
-    }
+		mySqlClient.preparedQuery("SELECT * FROM actuatorstate WHERE id_sensor = ? ORDER BY timeStamp DESC LIMIT 1")
+				.execute(Tuple.of(actuadorId), res -> {
+					if (res.succeeded() && res.result().size() > 0) {
+						Row row = res.result().iterator().next();
+						ActuadorState value = new ActuadorState(row.getInteger("id"), row.getInteger("id_actuador"),
+								row.getBoolean("estado"), row.getLong("timeStamp"));
+						ctx.response().setStatusCode(200).putHeader("Content-Type", "application/json")
+								.end(JsonObject.mapFrom(value).encode());
+					} else {
+						ctx.response().setStatusCode(404)
+								.end(new JsonObject().put("error", "No values found").encode());
+					}
+				});
+	}
+
+   
     
 }
