@@ -49,6 +49,7 @@ public class RestClient extends AbstractVerticle {
 //			});
 		
 		});
+		
 
 		 /////////////////
 		/** ENDPOINTS **/
@@ -69,6 +70,29 @@ public class RestClient extends AbstractVerticle {
             }
         });
     }
+    
+	 /////////////////////
+	/** MENSAJES MQTT **/
+   /////////////////////
+    
+    private void sendMqttMessage(String topic, String message) {
+        if (mqttClient != null && mqttClient.isConnected()) {
+            mqttClient.publish(
+                topic,
+                Buffer.buffer(message),
+                MqttQoS.AT_LEAST_ONCE,
+                false,
+                false
+            );
+        } else {
+            System.err.println("MQTT client is not connected. Cannot send message.");
+        }
+    }
+    
+	 ///////////////////////
+	/** MANEJADORES	API **/
+   ///////////////////////
+    
 
 //    private void handlePostSensorData(RoutingContext ctx) {
 //        SensorValue sensor = ctx.getBodyAsJson().mapTo(SensorValue.class);
@@ -112,19 +136,6 @@ public class RestClient extends AbstractVerticle {
         });
     }
 
-    private void sendMqttMessage(String topic, String message) {
-        if (mqttClient != null && mqttClient.isConnected()) {
-            mqttClient.publish(
-                topic,
-                Buffer.buffer(message),
-                MqttQoS.AT_LEAST_ONCE,
-                false,
-                false
-            );
-        } else {
-            System.err.println("MQTT client is not connected. Cannot send message.");
-        }
-    }
 
     private void handleGetLatestSensorValues(RoutingContext ctx) {
         String id = ctx.pathParam("id_sensor");
