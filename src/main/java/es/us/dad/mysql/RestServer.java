@@ -3,7 +3,6 @@ package es.us.dad.mysql;
 
 import com.google.gson.Gson;
 
-import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonArray;
@@ -11,8 +10,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.mqtt.MqttClient;
-import io.vertx.mqtt.MqttClientOptions;
 import io.vertx.mysqlclient.MySQLConnectOptions;
 import io.vertx.mysqlclient.MySQLPool;
 import io.vertx.sqlclient.PoolOptions;
@@ -22,33 +19,16 @@ import io.vertx.sqlclient.Tuple;
 
 public class RestServer extends AbstractVerticle {
 
-	public static final int puertohttp = 8086;
+	public static int puertohttp = 8082;
     
     
 	private MySQLPool mySqlClient;
-	MqttClient mqttClient;
   
     private final Gson gson = new Gson();
 	
 
     @Override
     public void start(Promise<Void> startFuture) {
-    
-		 ///////////////////////
-    	/** ESTABLEZCO MQTT **/
-       ///////////////////////
-    	
-    	mqttClient = MqttClient.create(vertx, new MqttClientOptions().setAutoKeepAlive(true));
-		
-		mqttClient.connect(1883, "localhost", s -> {
-
-			mqttClient.subscribe("twmp", MqttQoS.AT_LEAST_ONCE.value(), handler -> {
-				if (handler.succeeded()) {
-					System.out.println("Suscripción " + mqttClient.clientId());
-				}
-			});
-		
-		});
     	
 		 //////////////////////////////
 		/** CONFIGURACIÓN de MySQL **/
@@ -124,6 +104,8 @@ public class RestServer extends AbstractVerticle {
         vertx.createHttpServer().requestHandler(router::handle).listen(puertohttp, result -> {
 			if (result.succeeded()) {
 				startFuture.complete();
+                System.out.println("API de bajo nivel corriendo en el puerto: "+ puertohttp);
+
 			} else {
 				startFuture.fail(result.cause());
 			}
