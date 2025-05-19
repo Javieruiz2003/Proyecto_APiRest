@@ -1,10 +1,14 @@
 package es.us.dad.mysql;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.gson.Gson;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -33,7 +37,7 @@ public class RestServer extends AbstractVerticle {
 		 //////////////////////////////
 		/** CONFIGURACIÓN de MySQL **/
        //////////////////////////////
-        
+        																					//localhost
         MySQLConnectOptions connectOptions = new MySQLConnectOptions().setPort(3306).setHost("localhost")
             .setDatabase("proyectodad").setUser("BBDD_dad").setPassword("dad");
 
@@ -80,12 +84,20 @@ public class RestServer extends AbstractVerticle {
         router.get("/api/sensorValue/:id").handler(this::getSensorValueById);
         router.post("/api/sensorValue").handler(this::addSensorValue);
         //últimos 10  valores
-        router.get("/api/business/sensorValues/:id/latest").handler(this::getLatestSensorValue);
+        router.get("/api/business/sensorValues/:id/latest").handler(this::get10LatestSensorValues);
+        
+        
+        router.get("/api/business/group/:id/sensorValues/latest").handler(this::getLatestSensorValuesByGroup);
+        
         
         // Endpoints para actuatorState
         router.get("/api/actuatorState/:id").handler(this::getActuatorStateById);
         router.post("/api/actuatorState").handler(this::addActuatorState);
-        router.get("/api/actuatorState/:id/latest").handler(this::getLatestActuatorState);
+        //últimos 10 valores
+        router.get("/api/business/actuatorStates/:id/latest").handler(this::get10LatestActuatorStates);	//
+        
+        router.get("/api/business/group/:id/actuatorStates/latest").handler(this::getLatestActuatorStatesByGroup);
+
         
         
         /**
@@ -712,25 +724,74 @@ public class RestServer extends AbstractVerticle {
         }
     }
     
-
-	private void getLatestSensorValue(RoutingContext ctx) {
-		int sensorId = Integer.parseInt(ctx.pathParam("id"));
-
-		mySqlClient.preparedQuery("SELECT * FROM sensorValue WHERE id_sensor = ? ORDER BY timeStamp DESC LIMIT 1")
-				.execute(Tuple.of(sensorId), res -> {
-					if (res.succeeded() && res.result().size() > 0) {
-						Row row = res.result().iterator().next();
-						SensorValue value = new SensorValue(row.getInteger("id"), row.getInteger("id_sensor"),
-								row.getFloat("valor"), row.getLong("timeStamp"));
-						ctx.response().setStatusCode(200).putHeader("Content-Type", "application/json")
-								.end(JsonObject.mapFrom(value).encode());
-					} else {
-						ctx.response().setStatusCode(404)
-								.end(new JsonObject().put("error", "No values found").encode());
-					}
-				});
-	}
+    		/** CONSULTAS ESPECIFICAS API REST **/
  
+    private void get10LatestSensorValues(RoutingContext ctx) {
+        int sensorId = Integer.parseInt(ctx.pathParam("id"));
+
+        mySqlClient.preparedQuery("SELECT * FROM sensorValue WHERE id_sensor = ? ORDER BY timeStamp DESC LIMIT 10")
+            .execute(Tuple.of(sensorId), res -> {
+                if (res.succeeded() && res.result().size() > 0) {
+                    List<SensorValue> values = new ArrayList<>();
+                    for (Row row : res.result()) {
+                        values.add(new SensorValue(
+                            row.getInteger("id"),
+                            row.getInteger("id_sensor"),
+                            row.getFloat("valor"),
+                            row.getLong("timeStamp")
+                        ));
+                    }
+                    ctx.response().setStatusCode(200)
+                        .putHeader("Content-Type", "application/json")
+                        .end(Json.encodePrettily(values));
+                } else {
+                    ctx.response().setStatusCode(404)
+                        .end(new JsonObject().put("error", "No values found").encode());
+                }
+            });
+    }
+
+ 
+	private void getLatestSensorValuesByGroup(RoutingContext ctx) {
+	    int groupId = Integer.parseInt(ctx.pathParam("id"));
+
+	    String query = 
+
+	    		"SELECT sv.* "
+	    		+ "FROM sensorValue sv "
+	    		+ "INNER JOIN ("
+	    			+ "SELECT sv.id_sensor, MAX(sv.timeStamp) as max_ts "
+	    			+ "FROM sensorValue sv "
+	    			+ "JOIN sensor s ON sv.id_sensor = s.id "
+	    			+ "JOIN dispositivo d ON s.id_dispositivo = d.id "
+	    			+ "WHERE d.id_grupo = ? "
+	    			+ "GROUP BY sv.id_sensor"
+    			+ ") grouped "
+    			+ "ON sv.id_sensor = grouped.id_sensor AND sv.timeStamp = grouped.max_ts";
+
+	    mySqlClient.preparedQuery(query)
+	        .execute(Tuple.of(groupId), res -> {
+	            if (res.succeeded()) {
+	                List<SensorValue> values = new ArrayList<>();
+	                for (Row row : res.result()) {
+	                    values.add(new SensorValue(
+	                        row.getInteger("id"),
+	                        row.getInteger("id_sensor"),
+	                        row.getFloat("valor"),
+	                        row.getLong("timeStamp")));
+	                }
+	                ctx.response().setStatusCode(200)
+	                    .putHeader("Content-Type", "application/json")
+	                    .end(Json.encodePrettily(values));
+	            } else {
+	                ctx.response().setStatusCode(500)
+	                    .end(new JsonObject().put("error", "DB Error").encode());
+	                
+	            }
+	        });
+	}
+
+	
 		/**ACTUATORSTATE**/
     
     private void getActuatorStateById(RoutingContext ctx) {
@@ -794,23 +855,68 @@ public class RestServer extends AbstractVerticle {
                     .encode());
         }
     }
- 
-    private void getLatestActuatorState(RoutingContext ctx) {
-		int actuadorId = Integer.parseInt(ctx.pathParam("id"));
+    	
+    		/** CONSULTAS ESPECIFICAS API REST*/
 
-		mySqlClient.preparedQuery("SELECT * FROM actuatorstate WHERE id_sensor = ? ORDER BY timeStamp DESC LIMIT 1")
-				.execute(Tuple.of(actuadorId), res -> {
-					if (res.succeeded() && res.result().size() > 0) {
-						Row row = res.result().iterator().next();
-						ActuadorState value = new ActuadorState(row.getInteger("id"), row.getInteger("id_actuador"),
-								row.getBoolean("estado"), row.getLong("timeStamp"));
-						ctx.response().setStatusCode(200).putHeader("Content-Type", "application/json")
-								.end(JsonObject.mapFrom(value).encode());
-					} else {
-						ctx.response().setStatusCode(404)
-								.end(new JsonObject().put("error", "No values found").encode());
-					}
-				});
-	}
-    
+    private void get10LatestActuatorStates(RoutingContext ctx) {
+    	int actuadorId = Integer.parseInt(ctx.pathParam("id"));
+
+    	mySqlClient.preparedQuery("SELECT * FROM actuatorState WHERE id_actuador = ? ORDER BY timeStamp DESC LIMIT 10")
+    	.execute(Tuple.of(actuadorId), res -> {
+    		if (res.succeeded() && res.result().size() > 0) {
+    			List<ActuadorState> values = new ArrayList<>();
+    			for (Row row : res.result()) {
+    				values.add(new ActuadorState(
+    						row.getInteger("id"),
+    						row.getInteger("id_actuador"),
+    						row.getBoolean("estado"),
+    						row.getLong("timeStamp")
+    						));
+    			}
+    			ctx.response().setStatusCode(200)
+    			.putHeader("Content-Type", "application/json")
+    			.end(Json.encodePrettily(values));
+    		} else {
+    			ctx.response().setStatusCode(404)
+    			.end(new JsonObject().put("error", "No values found").encode());
+    		}
+    	});
+    }
+    private void getLatestActuatorStatesByGroup(RoutingContext ctx) {
+        int groupId = Integer.parseInt(ctx.pathParam("id"));
+
+        String query = 
+            "SELECT ast.* " +
+            "FROM actuatorState ast " +
+            "INNER JOIN ( " +
+                "SELECT ast.id_actuador, MAX(ast.timeStamp) as max_ts " +
+                "FROM actuatorState ast " +
+                "JOIN actuador a ON ast.id_actuador = a.id " +
+                "JOIN dispositivo d ON a.id_dispositivo = d.id " +
+                "WHERE d.id_grupo = ? " +
+                "GROUP BY ast.id_actuador " +
+            ") grouped " +
+            "ON ast.id_actuador = grouped.id_actuador AND ast.timeStamp = grouped.max_ts";
+
+        mySqlClient.preparedQuery(query)
+            .execute(Tuple.of(groupId), res -> {
+                if (res.succeeded()) {
+                    List<ActuadorState> values = new ArrayList<>();
+                    for (Row row : res.result()) {
+                        values.add(new ActuadorState(
+                            row.getInteger("id"),
+                            row.getInteger("id_actuador"),
+                            row.getBoolean("estado"),
+                            row.getLong("timeStamp")
+                        ));
+                    }
+                    ctx.response().setStatusCode(200)
+                        .putHeader("Content-Type", "application/json")
+                        .end(Json.encodePrettily(values));
+                } else {
+                    ctx.response().setStatusCode(500)
+                        .end(new JsonObject().put("error", "DB Error").encode());
+                }
+            });
+    }  
 }

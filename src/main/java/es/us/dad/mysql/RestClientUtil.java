@@ -33,6 +33,9 @@ public class RestClientUtil {
 	public <T> void getRequest(Integer port, String host, String resource, Class<T> classType, Promise<T> promise) {
 		client.getAbs(host + ":" + port + "/" + resource).send(elem -> {
 			if (elem.succeeded()) {
+
+//            	System.out.println(elem.result().bodyAsString());
+
 				promise.complete(gson.fromJson(elem.result().bodyAsString(), classType));
 			} else {
 				promise.fail(elem.cause());
@@ -84,9 +87,15 @@ public class RestClientUtil {
 	public <B, T> void postRequest(Integer port, String host, String resource, Object body, Class<T> classType,
 			Promise<T> promise) {
 		JsonObject jsonBody = new JsonObject(gson.toJson(body));
+		
+		System.out.println(host + ":" + port + "/" + resource);
+		
 		client.postAbs(host + ":" + port + "/" + resource).sendJsonObject(jsonBody, elem -> {
 			if (elem.succeeded()) {
 				Gson gson = new Gson();
+				
+//            	System.out.println(elem.result().bodyAsString());
+
 				promise.complete(gson.fromJson(elem.result().bodyAsString(), classType));
 			} else {
 				promise.fail(elem.cause());
@@ -137,6 +146,8 @@ public class RestClientUtil {
 		});
 
 	}
+
+
 
 	
 }

@@ -20,9 +20,13 @@ public class RestClient extends AbstractVerticle {
     int puertoBajoNivel = RestServer.puertohttp;
     int puertoAltoNivel = 8080;
     
+    String ipPC = "172.20.10.3";
+    
+    String host = "http://localhost";		
+    
 	MqttClient mqttClient;
 	
-	private static final double UMBRAL = 50.0;
+	Double UMBRAL = 30.0;
 
     @Override
     public void start(Promise<Void> startPromise) {
@@ -40,7 +44,7 @@ public class RestClient extends AbstractVerticle {
     	
     	mqttClient = MqttClient.create(vertx, new MqttClientOptions().setAutoKeepAlive(true));
 		
-		mqttClient.connect(1883, "localhost", s -> {
+		mqttClient.connect(1883, ipPC, s -> {
 
 //			mqttClient.subscribe("twmp", MqttQoS.AT_LEAST_ONCE.value(), handler -> {
 //				if (handler.succeeded()) {
@@ -56,9 +60,11 @@ public class RestClient extends AbstractVerticle {
        /////////////////
 
         router.post("/api/business/sensorData").handler(this::handlePostSensorData);
-        router.get("/api/business/sensorValue/:id_sensor/latest").handler(this::handleGetLatestSensorValues);
-        router.get("/api/business/actuatorStates/:id_actuador/latest").handler(this::handleGetLatestActuatorStates);
-        router.get("/api/business/group/:id_grupo/sensorValue/latest").handler(this::handleGetLatestGroupSensorValues);
+        
+        router.get("/api/business/sensorValues/:id_sensor/latest").handler(this::handleGet10LatestSensorValues);
+        router.get("/api/business/actuatorStates/:id_actuador/latest").handler(this::handleGet10LatestActuatorStates);
+        
+        router.get("/api/business/group/:id_grupo/sensorValues/latest").handler(this::handleGetLatestSensorValuesByGroup);
         router.get("/api/business/group/:id_grupo/actuatorStates/latest").handler(this::handleGetLatestGroupActuatorStates);
 
         vertx.createHttpServer().requestHandler(router).listen(puertoAltoNivel, http -> {
@@ -93,28 +99,11 @@ public class RestClient extends AbstractVerticle {
 	/** MANEJADORES	API **/
    ///////////////////////
     
-
-//    private void handlePostSensorData(RoutingContext ctx) {
-//        SensorValue sensor = ctx.getBodyAsJson().mapTo(SensorValue.class);
-//
-//        Promise<SensorValue> promise = Promise.promise();
-//        restClientUtil.postRequest(puertoBajoNivel, "http://localhost", "api/sensorValue", sensor, SensorValue.class, promise);
-//
-//        promise.future().onComplete(ar -> {
-//            if (ar.succeeded()) {
-//                ctx.response().setStatusCode(201).putHeader("Content-Type", "application/json")
-//                        .end(Json.encodePrettily(ar.result()));
-//            } else {
-//                ctx.response().setStatusCode(500).end(ar.cause().toString());
-//            }
-//        });
-//    }
-    
     private void handlePostSensorData(RoutingContext ctx) {
         SensorValue sensor = ctx.getBodyAsJson().mapTo(SensorValue.class);
 
         Promise<SensorValue> promise = Promise.promise();
-        restClientUtil.postRequest(puertoBajoNivel, "http://localhost", "api/sensorValue", sensor, SensorValue.class, promise);
+        restClientUtil.postRequest(puertoBajoNivel, host, "api/sensorValue", sensor, SensorValue.class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -137,10 +126,12 @@ public class RestClient extends AbstractVerticle {
     }
 
 
-    private void handleGetLatestSensorValues(RoutingContext ctx) {
+    	/* Últimos 10 valores SENSOR */
+    
+    private void handleGet10LatestSensorValues(RoutingContext ctx) {
         String id = ctx.pathParam("id_sensor");
         Promise<SensorValue[]> promise = Promise.promise();
-        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/sensores/" + id + "/latest", SensorValue[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, host, "api/business/sensorValues/" + id + "/latest", SensorValue[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -151,10 +142,12 @@ public class RestClient extends AbstractVerticle {
         });
     }
 
-    private void handleGetLatestActuatorStates(RoutingContext ctx) {
+    	/* Últimos 10 valores ACTUADOR */
+    
+    private void handleGet10LatestActuatorStates(RoutingContext ctx) {
         String id = ctx.pathParam("id_actuador");
         Promise<ActuadorState[]> promise = Promise.promise();
-        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/actuadores/" + id + "/latest", ActuadorState[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, host, "api/business/actuatorStates/" + id + "/latest", ActuadorState[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -165,10 +158,12 @@ public class RestClient extends AbstractVerticle {
         });
     }
 
-    private void handleGetLatestGroupSensorValues(RoutingContext ctx) {
+    	/*	Último valor de cada SENSOR del grupo */
+    
+    private void handleGetLatestSensorValuesByGroup(RoutingContext ctx) {
         String id = ctx.pathParam("id_grupo");
         Promise<SensorValue[]> promise = Promise.promise();
-        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/grupos/" + id + "/sensorValue/latest", SensorValue[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, host, "api/business/group/" + id + "/sensorValues/latest", SensorValue[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
@@ -179,10 +174,12 @@ public class RestClient extends AbstractVerticle {
         });
     }
 
+    	/*	Último valor de cada ACTUADOR del grupo */
+    
     private void handleGetLatestGroupActuatorStates(RoutingContext ctx) {
         String id = ctx.pathParam("id_grupo");
         Promise<ActuadorState[]> promise = Promise.promise();
-        restClientUtil.getRequest(puertoBajoNivel, "http://localhost", "api/grupos/" + id + "/actuatorState/latest", ActuadorState[].class, promise);
+        restClientUtil.getRequest(puertoBajoNivel, host, "api/business/group/" + id + "/actuatorStates/latest", ActuadorState[].class, promise);
 
         promise.future().onComplete(ar -> {
             if (ar.succeeded()) {
